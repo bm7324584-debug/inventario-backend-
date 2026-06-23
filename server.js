@@ -10,45 +10,171 @@ app.use(cors());
 
 // Conexión a MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("Conexión exitosa a MongoDB Atlas"))
-  .catch(err => console.error("Error de conexión:", err));
+  .then(() => console.log("✅ Conexión exitosa a MongoDB Atlas"))
+  .catch(err => console.error("❌ Error de conexión:", err));
 
 // Esquema NoSQL de Mongoose
 const ProductoSchema = new mongoose.Schema({
-  nombre: String,
-  precio: Number,
-  existencia: Number
+  nombre: {
+    type: String,
+    required: true
+  },
+  precio: {
+    type: Number,
+    required: true
+  },
+  existencia: {
+    type: Number,
+    required: true
+  }
+}, {
+  timestamps: true
 });
 
 const Producto = mongoose.model('Producto', ProductoSchema);
 
-// 1. GET: Obtener todos los productos
+// ========================================
+// GET - Obtener todos los productos
+// ========================================
 app.get('/productos', async (req, res) => {
   try {
-    const productos = await Producto.find();
+    const productos = await Producto.find().sort({ createdAt: -1 });
     res.json(productos);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      mensaje: 'Error al obtener productos',
+      error: error.message
+    });
   }
 });
 
-// 2. POST: Insertar un nuevo producto
+// ========================================
+// GET - Obtener un producto por ID
+// ========================================
+app.get('/productos/:id', async (req, res) => {
+  try {
+    const producto = await Producto.findById(req.params.id);
+
+    if (!producto) {
+      return res.status(404).json({
+        mensaje: 'Producto no encontrado'
+      });
+    }
+
+    res.json(producto);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: 'Error al buscar producto',
+      error: error.message
+    });
+  }
+});
+
+// ========================================
+// POST - Crear producto
+// ========================================
 app.post('/productos', async (req, res) => {
   try {
-    const nuevoProducto = new Producto(req.body);
+    const nuevoProducto = new Producto({
+      nombre: req.body.nombre,
+      precio: req.body.precio,
+      existencia: req.body.existencia
+    });
+
     await nuevoProducto.save();
 
-    res.json({
-      mensaje: "Producto registrado",
-      nuevoProducto
+    res.status(201).json({
+      mensaje: 'Producto registrado correctamente',
+      producto: nuevoProducto
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      mensaje: 'Error al registrar producto',
+      error: error.message
+    });
   }
 });
 
+// ========================================
+// PUT - Editar producto
+// ========================================
+app.put('/productos/:id', async (req, res) => {
+  try {
+
+    const productoActualizado = await Producto.findByIdAndUpdate(
+      req.params.id,
+      {
+        nombre: req.body.nombre,
+        precio: req.body.precio,
+        existencia: req.body.existencia
+      },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!productoActualizado) {
+      return res.status(404).json({
+        mensaje: 'Producto no encontrado'
+      });
+    }
+
+    res.json({
+      mensaje: 'Producto actualizado correctamente',
+      producto: productoActualizado
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      mensaje: 'Error al actualizar producto',
+      error: error.message
+    });
+  }
+});
+
+// ========================================
+// DELETE - Eliminar producto
+// ========================================
+app.delete('/productos/:id', async (req, res) => {
+  try {
+
+    const productoEliminado = await Producto.findByIdAndDelete(req.params.id);
+
+    if (!productoEliminado) {
+      return res.status(404).json({
+        mensaje: 'Producto no encontrado'
+      });
+    }
+
+    res.json({
+      mensaje: 'Producto eliminado correctamente',
+      producto: productoEliminado
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      mensaje: 'Error al eliminar producto',
+      error: error.message
+    });
+  }
+});
+
+// ========================================
+// Ruta principal
+// ========================================
+app.get('/', (req, res) => {
+  res.json({
+    mensaje: 'API Inventario NoSQL funcionando correctamente'
+  });
+});
+
+// ========================================
+// Iniciar servidor
+// ========================================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Servidor activo en puerto ${PORT}`);
+  console.log(`🚀 Servidor activo en puerto ${PORT}`);
 });
